@@ -4,12 +4,73 @@
 Require Import Reals  Psatz.
 From Flocq Require Import Core Plus_error Mult_error Relative Sterbenz Operations.
 From Flocq Require Import  Round.
-Require Import mathcomp.ssreflect.ssreflect Rmore.
+From mathcomp Require Import all_ssreflect.
+Require Import Rmore.
 
 Set Implicit Arguments.
 
-Section Main.
+Inductive dwR := DWR (xh : R) (xl : R).
+
+Definition opp_DWR (d : dwR) := 
+ let: DWR xh xl := d in DWR (- xh) (- xl).
+
+Lemma opp_DWR_K d : opp_DWR (opp_DWR d) = d.
+Proof. by case: d => xh xl; congr DWR; lra. Qed.
+Definition scale_DWR (s : R) (d : dwR) := 
+ let: DWR xh xl := d in DWR (s * xh) (s * xl).
+
+Open Scope R_scope.
+
+Section split.
+
 Definition  beta:= radix2.
+Variable p : Z.
+Variable fexp : Z -> Z.
+Variable rnd : R -> Z.
+Notation pow e := (bpow beta e).
+Local Notation RND := (round beta fexp rnd).
+
+Definition split (x : R) (s : Z) :=
+  let C := pow s  + 1 in 
+  let g := RND (C * x) in 
+  let d := RND (x - g) in 
+  let xh := RND (g + d) in 
+  let xl := RND (x - xh) in 
+  DWR xh xl.
+
+End split.
+
+Lemma split_opp rnd fexp x s : 
+  (forall x, round beta fexp rnd (- x) = - round beta fexp rnd x) -> 
+  split fexp rnd (- x) s = opp_DWR (split fexp rnd x s).
+Proof.
+move=> oppR; rewrite /Rminus /split.
+have -> : (bpow beta s + 1) * - x = - ((bpow beta s + 1) * x) by lra.
+by rewrite /Rminus !(oppR, =^~ Ropp_plus_distr).
+Qed.
+
+Lemma split_ZR_opp fexp x s : 
+  split fexp Ztrunc (- x) s = opp_DWR (split fexp Ztrunc x s).  
+Proof. by apply/split_opp/round_ZR_opp. Qed.
+
+Lemma split_AW_opp fexp x s : 
+  split fexp Zaway (- x) s = opp_DWR (split fexp Zaway x s).  
+Proof. by apply/split_opp/round_AW_opp. Qed.
+
+Lemma split_UP_opp fexp x s : 
+  split fexp Zceil (- x) s = opp_DWR (split fexp Zfloor x s).  
+Proof.
+rewrite /Rminus /split.
+have -> : (bpow beta s + 1) * - x = - ((bpow beta s + 1) * x) by lra.
+by rewrite /Rminus !(round_UP_opp, =^~ Ropp_plus_distr).
+Qed.
+
+Lemma split_DN_opp fexp x s : 
+  split fexp Zfloor (- x) s = opp_DWR (split fexp Zceil x s).  
+Proof. by rewrite -[in RHS](Ropp_involutive x) split_UP_opp opp_DWR_K. Qed.
+
+Section Main.
+
 Variable p : Z.
 Hypothesis precisionNotZero : (1 < p)%Z.
 Context { prec_gt_0_ : Prec_gt_0 p}.
@@ -22,35 +83,10 @@ Local Notation fexp := (FLX_exp p).
 Local Notation ce := (cexp beta fexp).
 Local Notation mant := (scaled_mantissa beta fexp).
 Local Notation RND := (round beta fexp rnd).
-
-Inductive dwR := DWR (xh : R) (xl : R).
-
-Definition opp_DWR (d : dwR) := 
- let: DWR xh xl := d in DWR (- xh) (- xl).
-
-Definition scale_DWR (s : R) (d : dwR) := 
- let: DWR xh xl := d in DWR (s * xh) (s * xl).
-
-Open Scope R_scope.
-
-Definition split (x : R) (s : Z) :=
-  let C := pow s  + 1 in 
-  let g := RND (C * x) in 
-  let d := RND (x - g) in 
-  let xh := RND (g + d) in 
-  let xl := RND (x - xh) in 
-  DWR xh xl.
+Local Notation split := (split fexp rnd).
 
 Lemma split_0 s : split 0 s = DWR 0 0.
 Proof. by rewrite /split !(round_0, Rsimp01). Qed.
-
-Lemma split_opp x s : 
-  (forall x, RND (- x) = - RND x) -> split (- x) s = opp_DWR (split x s).
-Proof.
-move=> oppR; rewrite /Rminus /split.
-have -> : (pow s + 1) * - x = - ((pow s + 1) * x) by lra.
-by rewrite /Rminus !(oppR, =^~ Ropp_plus_distr).
-Qed.
 
 Theorem cexp_bpow_flx x e (xne0 : x <> R0) : ce (pow e * x) = (ce x + e)%Z.
 Proof. by rewrite /cexp Rmult_comm mag_mult_bpow // /fexp; lia. Qed.
@@ -74,6 +110,22 @@ rewrite /split.
 have -> : (pow s + 1) * (pow t * x) = pow t * ((pow s + 1) * x) by lra.
 by rewrite !(round_bpow_flx, =^~ Rmult_minus_distr_l, =^~ Rmult_plus_distr_l).
 Qed.
+
+Hypothesis  basic_rnd : [\/ rnd = Ztrunc,
+                            rnd = Zaway,
+                            rnd = Zfloor | rnd = Zceil].
+ 
+Lemma split_sum x s : let: DWR xh xl := split x s in x = xh + xl.
+Proof.
+move: rnd valid_rnd basic_rnd.
+wlog : / 0 < x => [HR rnd1 Vrnd1| xP rnd1 Vrnd1 _].
+  have [->|xP|xN]: [\/ x = 0, 0 < x | x < 0].
+  - case: (Rle_dec x 0) => ?; last by apply: Or32; lra.
+    by case: (Req_dec x 0) => ?; [apply: Or31| apply: Or33; lra].
+  - rewrite split_0.
+
+  lra.
+  admit.
 
 End Main.
 
