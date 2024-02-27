@@ -314,15 +314,31 @@ pose RND1 := (round beta fexp rnd1).
 pose g := RND1 (C * x).
 pose e1 := g - C * x.
 have e1E : g = C * x + e1 by rewrite /e1; lra.
-have e1B : Rabs e1 <= pow (s - p + 2).
-  suff : Rabs e1 <= ulp (C * x) by lra.
-  by apply: error_le_ulp.
+have e1B : Rabs e1 < pow (s - p + 2).
+  suff : Rabs e1 < ulp (C * x) by lra.
+  by apply: error_lt_ulp; lra.
 have gM : is_imul g (pow (s - p + 1)).
   have gM1 : is_imul g (ulp (C * x)).
     apply: is_imul_rnd_ulp => //; first by lra.
   rewrite ulp_neq_0 in gM1 uCxB; last by lra.
   apply: is_imul_pow_le gM1 _.
   by apply: (le_bpow beta); lra.
+pose d := RND1 (x - g).
+pose e2 := d - (x - g).
+have e2E : d =  x - g + e2 by rewrite /e2; lra.
+have e2E1 : d = - pow s * x - e1 + e2 by rewrite e2E e1E /C; lra.
+have xgE : x - g = - pow s * x - e1 by rewrite e1E /C; lra.
+have xgB : Rabs (x - g) < pow (s + 1) + pow (s- p + 1).
+  rewrite xgE.
+  apply: Rle_lt_trans (_ : Rabs (pow s * x) + Rabs e1 < _); first by split_Rabs; lra.
+  have -> : pow (s + 1) + pow (s - p + 1) =  
+            pow s * (2 - pow (- p +1)) + pow (s- p + 2).
+    have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
+    have -> : (s - p + 2 = 1 + s + (- p + 1))%Z by lia.
+    by rewrite !bpow_plus -[pow 1]/2; lra.
+  suff : Rabs (pow s * x) <= pow s * (2 - pow (- p + 1)) by lra.
+  rewrite Rabs_mult !Rabs_pos_eq; try lra.
+  apply: Rmult_le_compat_l; lra.
 Qed.
 
 End Main.
