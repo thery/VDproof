@@ -127,6 +127,93 @@ Qed.
 
 End Scale.
 
+Section IMUL.
+
+Variable p : Z.
+Hypothesis precisionNotZero : (1 < p)%Z.
+Context { prec_gt_0_ : Prec_gt_0 p}.
+Notation format := (generic_format beta (FLX_exp p)).
+Notation pow e := (bpow beta e).
+Variable rnd : R -> Z.
+Context ( valid_rnd : Valid_rnd rnd ).
+
+Local Notation fexp := (FLX_exp p).
+Local Notation ce := (cexp beta fexp).
+Local Notation mant := (scaled_mantissa beta fexp).
+Local Notation RND := (round beta fexp rnd).
+Local Notation ulp := (ulp beta fexp).
+Local Notation split := (split fexp rnd).
+Local Notation splitr := (split fexp (Zrnd_opp rnd)).
+
+
+Definition is_imul x y := exists z : Z, x = IZR z * y.
+
+Lemma is_imul_format_mag_pow x y : 
+  format x -> (y <= fexp (mag beta x))%Z -> is_imul x (pow y).
+Proof.
+move=> Fx My.
+have [-> | x_neq0] := Req_dec x 0; first by exists 0%Z; lra.
+rewrite /generic_format /F2R /= in Fx.
+rewrite Fx /cexp.
+set m := Ztrunc _.
+exists (m * (beta ^ (fexp (mag beta x) - y)))%Z.
+rewrite mult_IZR IZR_Zpower; last by lia.
+by rewrite Rmult_assoc -bpow_plus; congr (_ * pow _); lia.
+Qed.
+
+Lemma is_imul_pow_round x y : is_imul x (pow y) -> is_imul (RND x) (pow y).
+Proof.
+move=> [k ->].
+rewrite /round /mant /F2R /=.
+set e1 := ce _; set m1 := rnd _.
+have [e1L|yLe1] := Zle_or_lt e1 y.
+  exists k.
+  rewrite /m1.
+  have -> : IZR k * pow y * pow (- e1) = IZR (k * beta ^ (y - e1)).
+    rewrite Rmult_assoc -bpow_plus -IZR_Zpower; last by lia.
+    by rewrite -mult_IZR.
+  rewrite Zrnd_IZR.
+  rewrite mult_IZR IZR_Zpower; last by lia.
+  by rewrite Rmult_assoc -bpow_plus; congr (_ * pow _); lia.
+exists ((rnd (IZR k * pow (y - e1))%R) * beta ^ (e1 - y))%Z.
+rewrite mult_IZR IZR_Zpower; try lia.
+rewrite /m1 Rmult_assoc -bpow_plus.
+rewrite  Rmult_assoc -bpow_plus.
+congr (_ * pow _); lia.
+Qed.
+
+Lemma is_imul_ulp x : format x -> is_imul x (ulp x).
+Proof.
+have [->|x_neq_0] := Req_dec x 0.
+  by rewrite ulp_FLX_0; exists 0%Z; lra.
+move=> xF; rewrite ulp_neq_0 // {1}xF.
+by exists (Ztrunc (mant x)).
+Qed.
+
+Lemma is_imul_rnd_ulp x : 0 <= x -> is_imul (RND x) (ulp x).
+Proof.
+have [->|x_neq_0] := Req_dec x 0.
+  by rewrite ulp_FLX_0 round_0; exists 0%Z; lra.
+move=> xP; have {x_neq_0}xP : 0 < x by lra.
+have [<-|->] : ulp (RND x) = ulp x \/ RND x = pow (mag beta x).
+- by apply: ulp_round_pos.
+- by apply: is_imul_ulp; apply: generic_format_round.
+rewrite ulp_neq_0 /ce /fexp; last by lra.
+exists (beta ^ p)%Z.
+by rewrite IZR_Zpower -?bpow_plus; try congr bpow; lia.
+Qed.
+
+Lemma is_imul_pow_le x y1 y2 : 
+  is_imul x (pow y1) -> (y2 <= y1)%Z -> is_imul x (pow y2).
+Proof.
+move=> [z ->] y2Ly1.
+exists (z * beta ^ (y1 - y2))%Z.
+rewrite mult_IZR IZR_Zpower; last by lia.
+rewrite Rmult_assoc -bpow_plus; congr (_ * pow _); lia.
+Qed.
+
+End IMUL.
+
 Section Main.
 
 Variable p : Z.
@@ -223,7 +310,19 @@ have uCxB :  pow (s - p + 1) <= ulp (C * x) <= pow (s - p + 2).
   apply: mag_le_bpow; first by nra.
   rewrite Rabs_pos_eq; first by lra.
   by nra.
-
+pose RND1 := (round beta fexp rnd1).
+pose g := RND1 (C * x).
+pose e1 := g - C * x.
+have e1E : g = C * x + e1 by rewrite /e1; lra.
+have e1B : Rabs e1 <= pow (s - p + 2).
+  suff : Rabs e1 <= ulp (C * x) by lra.
+  by apply: error_le_ulp.
+have gM : is_imul g (pow (s - p + 1)).
+  have gM1 : is_imul g (ulp (C * x)).
+    apply: is_imul_rnd_ulp => //; first by lra.
+  rewrite ulp_neq_0 in gM1 uCxB; last by lra.
+  apply: is_imul_pow_le gM1 _.
+  by apply: (le_bpow beta); lra.
 Qed.
 
 End Main.
