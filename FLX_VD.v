@@ -233,11 +233,13 @@ Local Notation split := (split fexp rnd).
 Local Notation splitr := (split fexp (Zrnd_opp rnd)).
 
 Lemma split_sum x s :  
+  [\/ forall x, rnd x = Ztrunc x, forall x, rnd x = Zfloor x |
+      forall x, rnd x = Zceil x] ->
   format x -> (2 <= s <= p - 2)%Z -> let: DWR xh xl := split x s in x = xh + xl.
 Proof.
-move=> xF sB.
-move: rnd valid_rnd.
-wlog : x xF / 0 < x => [IH rnd1 Vrnd1| xP rnd1 Vrnd1].
+move=> Crnd xF sB.
+move: rnd valid_rnd Crnd.
+wlog : x xF / 0 < x => [IH rnd1 Vrnd1 Crnd1| xP rnd1 Vrnd1 Crnd1].
   have [->|xP|xN]: [\/ x = 0, 0 < x | x < 0].
   - case: (Rle_dec x 0) => ?; last by apply: Or32; lra.
     by case: (Req_dec x 0) => ?; [apply: Or31| apply: Or33; lra].
@@ -247,7 +249,17 @@ wlog : x xF / 0 < x => [IH rnd1 Vrnd1| xP rnd1 Vrnd1].
   suff : let 'DWR xh xl := FLX_VD.split fexp (Zrnd_opp rnd1) (- x) s 
          in - x = xh + xl.
     by rewrite split_oppr; case: FLX_VD.split => /= xh xl; lra.
-  by apply: IH => //; apply: generic_format_opp.
+  apply: IH => //.
+    by apply: generic_format_opp.
+    case: Crnd1 => Hr.
+    apply: Or31 => x1.
+    rewrite /Zrnd_opp /= Hr Ztrunc_opp; lia.
+  apply: Or33 => x1.
+    by rewrite /Zrnd_opp /= Hr.
+  apply: Or32 => x1.
+  rewrite /Zrnd_opp /= Hr.
+  rewrite /Zceil. suff -> : (- - x1 = x1)%R by lia.
+  lra.
 set splitv := FLX_VD.split fexp rnd1.
 wlog : x xP xF / 1 <= x  < 2 => [IH | xB].
   suff : let 'DWR xh xl := splitv (pow (- (mag beta x - 1)) * x) s 
@@ -327,6 +339,11 @@ pose d := RND1 (x - g).
 pose e2 := d - (x - g).
 have e2E : d =  x - g + e2 by rewrite /e2; lra.
 have e2E1 : d = - pow s * x - e1 + e2 by rewrite e2E e1E /C; lra.
+have rs1E : RND1 (- pow (s + 1)) = - pow (s + 1).
+  apply: round_generic.
+  apply: generic_format_opp.
+  apply: generic_format_bpow.
+  by rewrite /fexp; lia.    
 have xgE : x - g = - pow s * x - e1 by rewrite e1E /C; lra.
 have xgB : Rabs (x - g) < pow (s + 1) + pow (s- p + 1).
   rewrite xgE.
@@ -339,6 +356,96 @@ have xgB : Rabs (x - g) < pow (s + 1) + pow (s- p + 1).
   suff : Rabs (pow s * x) <= pow s * (2 - pow (- p + 1)) by lra.
   rewrite Rabs_mult !Rabs_pos_eq; try lra.
   apply: Rmult_le_compat_l; lra.
+have sxBu :  - pow s * x <= - pow s - pow (s - p + 1).
+  have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
+  by rewrite bpow_plus; nra.
+have xgBu : x - g < - pow s + pow (s - p + 1).
+  suff : pow (s - p + 2) = 2 * pow (s - p + 1).
+    by rewrite xgE; clear -e1B sxBu; split_Rabs; lra. 
+  have -> : (s - p + 2 = (s - p + 1) + 1)%Z by lia.
+  by rewrite bpow_plus -[pow 1]/2; lra.
+have xgN : x - g < 0.
+  suff :  pow (s - p + 1) < pow s by lra.
+  by apply: bpow_lt; lia.
+have dBu : Rabs d <= pow (s + 1).
+  rewrite /d Rabs_left1; last first.
+    have <- : RND1 0 = 0 by apply: round_0.
+    by apply: round_le; lra.
+  suff : - pow (s + 1) <= RND1 (x - g) by lra.
+  have [e1N|e1P] := Rle_lt_dec e1 0.
+    rewrite -rs1E; apply: round_le.
+    rewrite Rabs_left1 in e1B; last by lra.
+    have F2 : pow (s - p + 1) - pow (s + 1) <= - pow s * x.
+      have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
+      by rewrite bpow_plus [pow (s + 1)]bpow_plus -[pow 1]/2; nra.
+    have F3 : pow (s - p + 1) - pow (s + 1) <= x - g by rewrite xgE; lra.
+    suff : 0 <= pow (s - p + 1) by lra.
+    by apply: bpow_ge_0.
+  have CxNF : ~ format (C * x).
+    move => CxF.
+    suff : g = C * x by lra.
+    by rewrite /g /RND1 round_generic.
+  have Hrnd1 x1 : rnd1 x1 = Zceil x1.
+    have CxB1 : round beta fexp Zfloor (C * x) < C * x < 
+                round beta fexp Zceil (C * x).
+        by apply: round_DN_UP_lt.
+    case: Crnd1 => HC //.
+      have rCxE : RND1 (C * x) = round beta fexp Ztrunc (C * x).
+        by rewrite /RND1 /round HC.
+      rewrite round_ZR_DN in rCxE; last by lra.
+      by rewrite -rCxE -/g in CxB1; lra.
+    have rCxE : RND1 (C * x) = round beta fexp Zfloor (C * x).
+      by rewrite /RND1 /round HC.
+    by rewrite -rCxE -/g in CxB1; lra.
+  rewrite Rabs_pos_eq in e1B; last by lra.
+  have xgBd : - pow (s + 1) - pow (s - p + 1) < x - g .
+    have sxBd : pow (s - p + 1) - pow (s + 1) <= - pow s * x.
+      have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
+      by rewrite bpow_plus [pow (s + 1)]bpow_plus -[pow 1]/2; nra.
+    have xgBd1 : pow (s - p + 1) - pow (s + 1) - pow (s - p + 2) < x - g.
+      by rewrite xgE; lra.
+    suff : pow (s - p + 2) = 2 * pow (s - p + 1) by lra. 
+    have -> : (s - p + 2 = (s - p + 1) + 1)%Z by lia.
+    by rewrite bpow_plus -[pow 1]/2; lra.
+  have ubsE : Ulp.pred beta fexp (- pow (s + 1)) = 
+                    - (pow (s + 1) + pow (s - p + 2)) .
+    rewrite pred_opp succ_eq_pos; last apply: bpow_ge_0.
+    rewrite ulp_bpow /fexp.
+    by congr (- (pow _ + pow _)); lia.
+  have [G1|G1] := Rle_lt_dec (x - g) (- pow (s + 1)); last first.
+    by rewrite -rs1E; apply: round_le; lra.
+  have xgB1 : Ulp.pred beta fexp (- pow (s + 1)) < x - g <= - pow (s + 1).
+    split; last by lra.
+    have -> : Ulp.pred beta fexp (- pow (s + 1)) =
+                - (pow (s + 1) + pow (s - p + 2)).
+      rewrite pred_opp succ_eq_pos; last apply: bpow_ge_0.
+      rewrite ulp_bpow /fexp.
+      by congr (- (pow _ + pow _)); lia.
+    have sxBd : pow (s - p + 1) - pow (s + 1) <= - pow s * x.
+      have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
+      by rewrite bpow_plus [pow (s + 1)]bpow_plus -[pow 1]/2; nra.
+    suff : pow (s - p + 2) = 2 * pow (s - p + 1) by lra. 
+    have -> : (s - p + 2 = (s - p + 1) + 1)%Z by lia.
+    by rewrite bpow_plus -[pow 1]/2; lra.
+  rewrite -/d.
+  have -> : d = round beta fexp Zceil (x - g).
+    by rewrite /d /round -Hrnd1.
+  rewrite (round_UP_eq _ _ _ _ _ xgB1) //; first by lra.
+  apply/generic_format_opp/generic_format_bpow.
+  by rewrite /fexp; lia.
+have dBd : pow s <= Rabs d.
+  rewrite /d Rabs_left1; last first.
+    have <- : RND1 0 = 0 by apply: round_0.
+    by apply: round_le; lra.
+  suff : RND1 (x - g) <= - pow s by lra.
+  have [xE|xD] := Req_dec x (1 + pow (s + 1)); last first.
+  have xB2 : 1 + pow (- p +2) <= x.
+    suff <- : succ beta fexp (1 + pow (- p + 1)) = 1 + pow (- p + 2).
+      apply: succ_le_lt => //.
+        suff <- : succ beta fexp 1 = 1 + pow (- p + 1).
+          apply: generic_format_succ => //.
+          rewrite -[1]/(pow 0).
+          by apply: generic_format_bpow; rewrite /fexp; lia.
 Qed.
 
 End Main.
