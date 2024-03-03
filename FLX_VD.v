@@ -418,7 +418,7 @@ have dBu : Rabs d <= pow (s + 1).
     split; last by lra.
     have -> : Ulp.pred beta fexp (- pow (s + 1)) =
                 - (pow (s + 1) + pow (s - p + 2)).
-      rewrite pred_opp succ_eq_pos; last apply: bpow_ge_0.
+      rewrite pred_opp succ_eq_pos; last by apply: bpow_ge_0.
       rewrite ulp_bpow /fexp.
       by congr (- (pow _ + pow _)); lia.
     have sxBd : pow (s - p + 1) - pow (s + 1) <= - pow s * x.
@@ -438,15 +438,123 @@ have dBd : pow s <= Rabs d.
     have <- : RND1 0 = 0 by apply: round_0.
     by apply: round_le; lra.
   suff : RND1 (x - g) <= - pow s by lra.
-  have [xE|xD] := Req_dec x (1 + pow (s + 1)); last first.
-  have xB2 : 1 + pow (- p +2) <= x.
-    suff <- : succ beta fexp (1 + pow (- p + 1)) = 1 + pow (- p + 2).
-      apply: succ_le_lt => //.
-        suff <- : succ beta fexp 1 = 1 + pow (- p + 1).
-          apply: generic_format_succ => //.
-          rewrite -[1]/(pow 0).
-          by apply: generic_format_bpow; rewrite /fexp; lia.
+  have [xE|xD] := Req_dec x (1 + pow (-p  + 1)); last first.
+    have xB2 : 1 + pow (- p + 2) <= x.
+      have succ1E : succ beta fexp 1 = 1 + pow (- p + 1).
+        rewrite succ_eq_pos; last by lra.
+        by rewrite -[ulp 1]/(ulp (pow 0)) ulp_bpow /fexp; congr (_ + pow _); lia.
+      suff <- : succ beta fexp (1 + pow (- p + 1)) = 1 + pow (- p + 2).
+        apply: succ_le_lt => //; last by lra.
+        rewrite -succ1E; apply: generic_format_succ => //.
+        rewrite -[1]/(pow 0).
+        by apply: generic_format_bpow; rewrite /fexp; lia.
+      rewrite succ_eq_pos; last first.
+        suff :  0 < pow (- p + 1) by lra.
+        by apply: bpow_gt_0.
+      rewrite ulp_neq_0 /ce /fexp; last first.
+        suff : 0 <= pow (- p + 1) by lra.
+        by apply: bpow_ge_0.
+      rewrite (mag_unique_pos beta _ 1).
+        have -> : (- p + 2 = - p + 1 + 1)%Z by lia.
+        by rewrite !bpow_plus -[pow 1]/2; lra.
+      rewrite -[pow (1 - 1)]/1 -[pow 1]/2.
+      suff : 0 <= pow (- p + 1) < pow 0 by rewrite -[pow 0]/1; lra.
+      split; first by apply: bpow_ge_0.
+      by apply: bpow_lt; lia.
+    have <- : RND1 (- pow s) = - pow s.
+      apply/round_generic/generic_format_opp/generic_format_bpow.
+      by rewrite /fexp; lia.
+    apply: round_le.
+    rewrite xgE.
+    have {2}-> : - pow s = - pow s * (1 + pow (- p + 2)) + pow (s - p + 2).
+      by rewrite !bpow_plus; lra.
+    apply: Rplus_le_compat; last first.
+      suff: 0 <= pow (s - p + 2) by clear -e1B; split_Rabs; lra.
+      by apply: bpow_ge_0.
+    suff : 0 <= pow s by nra.
+    by apply: bpow_ge_0.
+  have [HC | HNC]: (forall x : R, rnd1 x = Zceil x) \/ 
+        ((forall x : R, rnd1 x = Ztrunc x) \/ forall x : R, rnd1 x = Zfloor x).
+  - by case: Crnd1; [right; left| right; right|left].
+  - have e1P : 0 <= e1.
+      suff : C * x <= RND1 (C * x) by rewrite /e1 /g; lra.
+      have -> : RND1 (C * x) = round beta fexp Zceil (C * x).
+        by rewrite /RND1 /round HC.
+      have [CxF|CxNF] // := generic_format_EM beta fexp (C * x).
+        by rewrite round_generic //; lra. 
+      have CxB1 : round beta fexp Zfloor (C * x) < C * x < 
+                  round beta fexp Zceil (C * x).
+          by apply: round_DN_UP_lt.
+      by lra.
+    have <- : RND1 (- pow s) = - pow s.
+      apply/round_generic/generic_format_opp/generic_format_bpow.
+      by rewrite /fexp; lia.
+    apply: round_le.
+    by rewrite xgE; nra.
+  have gE1 : g = round beta fexp Zfloor (C * x).
+    case: HNC => HNC;  last by rewrite /g /RND1 /round HNC.
+    rewrite -round_ZR_DN; last by lra.
+    by rewrite /g /RND1 /round HNC.
+  suff -> : g = pow s + 1 + pow (s - p + 1).
+    have <- : RND1 (- pow s) = - pow s.
+      apply/round_generic/generic_format_opp/generic_format_bpow.
+      by rewrite /fexp; lia.
+    apply: round_le.
+    suff : pow (- p + 1) <= pow (s - p + 1) by rewrite xE; lra.
+    by apply: bpow_le; lia.
+  pose gf := (Float beta (2 ^ (p - 1) + 2 ^ (p - s - 1) + 1) (s - p + 1)).
+  have gfE : pow s + 1 + pow (s - p + 1) = F2R gf.  
+    rewrite /F2R /= !plus_IZR !(IZR_Zpower beta); try lia.
+    rewrite !Rmult_plus_distr_r -!bpow_plus Rsimp01 -[1]/(pow 0).
+    by congr (pow _ + pow _ + pow _); lia.
+  have gfF : format (F2R gf).
+    apply: generic_format_FLX.
+    apply: (FLX_spec beta p _ gf) => //=.
+    rewrite /= Z.abs_eq; last by lia.
+    have -> : (2 ^ p = 2 * 2 ^ (p - 1))%Z.
+      by rewrite -(Zpower_plus 2 1); try congr (2 ^  _)%Z; lia.
+    suff : (1 + 2 ^ (p - s - 1) < 2 ^ (p - 1))%Z by lia.
+    have -> : (2 ^ (p - 1) = 2 * 2 ^ (p - 2))%Z.
+      by rewrite -(Zpower_plus 2 1); try congr (2 ^  _)%Z; lia.
+    have : (1 <= 2 ^ (p -2))%Z by apply (Zpower_le beta 0); lia.
+    have : (2 ^ (p -  s - 1) < 2 ^ (p -2))%Z by apply (Zpower_lt beta); lia.
+    by lia.
+  rewrite gE1; apply: round_DN_eq => //.
+    by rewrite gfE.
+  rewrite xE /C; split.
+    suff : pow (s - p + 1) <= pow s * pow (- p + 1) by lra.
+    rewrite -bpow_plus.
+    have -> : (s + (- p + 1) = s - p + 1)%Z by lia.
+    by lra.
+  rewrite succ_eq_pos; last first.
+    have : 0 <= pow s by apply: bpow_ge_0.
+    have : 0 <= pow (s - p + 1) by apply: bpow_ge_0.
+    by lra.
+  suff : pow s * pow (- p + 1) + pow (- p + 1) <
+        pow (s - p + 1) + ulp (pow s + 1 + pow (s - p + 1)) by lra.
+  suff : pow (- p + 1) <  ulp (pow s + 1 + pow (s - p + 1)).
+    rewrite -bpow_plus.
+    have -> : (s + (- p + 1) = s - p + 1)%Z by lia.
+    by lra.
+  rewrite [X in ulp X]gfE ulp_neq_0 //; last first.
+    rewrite -gfE.
+    have : 0 < pow s by apply: bpow_gt_0.
+    have : 0 < pow (s - p + 1) by apply: bpow_gt_0.
+    by lra.
+  apply: bpow_lt.
+  rewrite /cexp /fexp; suff : (1 < mag beta (F2R gf))%Z by lia.
+  rewrite (mag_unique_pos beta _ (s + 1)); first by lia.
+  rewrite -gfE.
+  have -> : (s + 1 - 1 = s)%Z by lia.
+  split; first by (have : 0 <= pow (s - p + 1) by apply: bpow_ge_0); lra.
+  suff : 1 + pow (s - p + 1) < pow s by rewrite !bpow_plus -[pow 1]/2; lra.
+  have -> : pow s = 2 * pow (s - 1).
+    by rewrite -(bpow_plus beta 1); congr (pow _); lia.
+  have : 1 < pow (s - 1) by apply: (bpow_lt _ 0); lia.
+  have : pow (s - p + 1) < pow (s - 1) by apply: bpow_lt; lia.
+  by lra.
 Qed.
+
 
 End Main.
 
