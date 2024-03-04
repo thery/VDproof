@@ -77,10 +77,10 @@ Local Notation RND := (round beta fexp rnd).
 Local Notation split := (split fexp rnd).
 Local Notation splitr := (split fexp (Zrnd_opp rnd)).
 
-Theorem cexp_bpow_flx x e (xne0 : x <> R0) : ce (pow e * x) = (ce x + e)%Z.
+Lemma cexp_bpow_flx x e (xne0 : x <> R0) : ce (pow e * x) = (ce x + e)%Z.
 Proof. by rewrite /cexp Rmult_comm mag_mult_bpow // /fexp; lia. Qed.
 
-Theorem mant_bpow_flx x e : mant (pow e * x) = mant x.
+Lemma mant_bpow_flx x e : mant (pow e * x) = mant x.
 Proof.
 have [->|Zx] := Req_dec x 0 ; first by rewrite Rsimp01.
 rewrite /scaled_mantissa cexp_bpow_flx // Rmult_comm -Rmult_assoc Rmult_comm.
@@ -231,6 +231,34 @@ Local Notation ulp := (ulp beta fexp).
 Local Notation RND := (round beta fexp rnd).
 Local Notation split := (split fexp rnd).
 Local Notation splitr := (split fexp (Zrnd_opp rnd)).
+Local Notation pred := (Ulp.pred beta fexp).
+
+Lemma bpow_lt_ulp x s :  Rabs x < pow s -> ulp x <= pow (s - p).
+Proof.
+move=> xLs.
+pose y := pred (pow s).
+have yE : y = pow s - pow (s - p) by apply: pred_bpow.
+have yP : 0 < y.
+  rewrite yE; suff : pow (s - p) < pow s by lra.
+  by apply: bpow_lt; lia.
+have s1Lp : pow (s - 1) < y.
+  rewrite yE; have -> : pow s = 2 * pow (s - 1).
+    by rewrite -(bpow_plus radix2 1); congr (pow _); lia.
+  suff : pow (s - p) < pow (s - 1) by lra.
+  by apply: bpow_lt; lia.
+have yU : ulp y = pow (s - p).
+  rewrite ulp_neq_0; last by lra.
+  rewrite /cexp /fexp (mag_unique_pos beta _ s) //; split; first by lra.
+  rewrite yE; suff : 0 < pow (s - p) by lra.
+  by apply: bpow_gt_0.
+have [xLp|pLx] := Rle_lt_dec (Rabs x) y.
+  rewrite -yU -[ulp x]ulp_abs.
+  by apply: ulp_le_pos => //; clear; split_Rabs; lra.
+rewrite -[ulp x]ulp_abs; suff -> : ulp (Rabs x) = pow (s - p) by lra.
+rewrite ulp_neq_0 /cexp /fexp; last by lra.
+rewrite (mag_unique_pos beta _ s) //.
+by split; lra.
+Qed.
 
 Lemma split_sum x s :  
   [\/ forall x, rnd x = Ztrunc x, forall x, rnd x = Zfloor x |
@@ -562,15 +590,35 @@ have e2B : Rabs e2 <= pow (s - p + 2).
     rewrite Rabs_Rabsolu [Rabs (pow _)]Rabs_pos_eq //.
     by apply: bpow_ge_0.
   by rewrite ulp_bpow /fexp; apply: bpow_le; lia.
-have dLg : - d <= g.
-  suff : 0 <= x + e2 by rewrite e2E e1E; lra.
-  apply: Rle_trans (_ : 1 - pow (s - p + 2) <= _); last first.
-    by clear - e2B xB; split_Rabs; lra.
+have dLgB : - d <= g <= 2 * - d.
+  split.
+    suff : 0 <= x + e2 by rewrite e2E e1E; lra.
+    apply: Rle_trans (_ : 1 - pow (s - p + 2) <= _); last first.
+      by clear - e2B xB; split_Rabs; lra.
+    suff : pow (s - p + 2) <= 1 by lra.
+    by apply: (bpow_le _ _ 0); lia.
+  suff : g + 2 * d <= 0 by lra.
+  have -> : g + 2 * d = - pow s * x + x - e1 + 2 * e2.
+    by rewrite e2E e1E; lra.
+  apply: Rle_trans (_ : -3 * x + pow (s - p + 2) + 2 * pow (s - p + 2) <= _).
+    repeat apply: Rplus_le_compat.
+    - suff :  4 <= pow s by nra.
+      by apply: (bpow_le radix2 2); lia.
+    - by clear -e1B; split_Rabs; lra.
+    by clear -e2B; split_Rabs; lra.
   suff : pow (s - p + 2) <= 1 by lra.
-  by apply: (bpow_le _ _ 0); lia.
-
+  by apply: (bpow_le radix2 _ 0); lia.
+pose xh := RND1 (g + d).
+have xhE : xh = g + d.
+  apply: round_generic.
+  have -> : g + d = g - (- d) by lra.
+  apply: sterbenz; first by apply: generic_format_round.
+    by apply/generic_format_opp/generic_format_round.
+  by lra.
+    
 (*
-gamma + 2delta = -2^s x + x - epsilon1 + 2 epsilon2
+gamma + 2delta = -2^s x + 
+x - epsilon1 + 2 epsilon2
                <= -3x + 2^{s-p+2} + 2 * 2^{s-p+1}   car 2 <= s
                <= -3 + 2^{s-p+3}
                <= -3 + 2^-5                         car s <= p-2
