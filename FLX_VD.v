@@ -553,6 +553,30 @@ have dBd : pow s <= Rabs d.
   have : 1 < pow (s - 1) by apply: (bpow_lt _ 0); lia.
   have : pow (s - p + 1) < pow (s - 1) by apply: bpow_lt; lia.
   by lra.
+have e2B : Rabs e2 <= pow (s - p + 2).
+  apply: Rle_trans (_ : ulp d <= _).
+    by apply: error_le_ulp_round.
+  rewrite -ulp_abs.
+  apply: Rle_trans (_ : ulp (pow (s + 1)) <= _).
+    apply: ulp_le.
+    rewrite Rabs_Rabsolu [Rabs (pow _)]Rabs_pos_eq //.
+    by apply: bpow_ge_0.
+  by rewrite ulp_bpow /fexp; apply: bpow_le; lia.
+have dLg : - d <= g.
+  suff : 0 <= x + e2 by rewrite e2E e1E; lra.
+  apply: Rle_trans (_ : 1 - pow (s - p + 2) <= _); last first.
+    by clear - e2B xB; split_Rabs; lra.
+  suff : pow (s - p + 2) <= 1 by lra.
+  by apply: (bpow_le _ _ 0); lia.
+
+(*
+gamma + 2delta = -2^s x + x - epsilon1 + 2 epsilon2
+               <= -3x + 2^{s-p+2} + 2 * 2^{s-p+1}   car 2 <= s
+               <= -3 + 2^{s-p+3}
+               <= -3 + 2^-5                         car s <= p-2
+               <= 0
+*)
+
 Qed.
 
 
