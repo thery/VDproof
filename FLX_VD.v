@@ -395,23 +395,18 @@ have xgBu : x - g < - pow s + pow (s - p + 1).
 have xgN : x - g < 0.
   suff :  pow (s - p + 1) < pow s by lra.
   by apply: bpow_lt; lia.
-have dBu : Rabs d <= pow (s + 1).
-  rewrite /d Rabs_left1; last first.
-    have <- : RND1 0 = 0 by apply: round_0.
-    by apply: round_le; lra.
-  suff : - pow (s + 1) <= RND1 (x - g) by lra.
-  have [e1N|e1P] := Rle_lt_dec e1 0.
-    rewrite -rs1E; apply: round_le.
-    rewrite Rabs_left1 in e1B; last by lra.
-    have F2 : pow (s - p + 1) - pow (s + 1) <= - pow s * x.
-      have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
-      by rewrite bpow_plus [pow (s + 1)]bpow_plus -[pow 1]/2; nra.
-    have F3 : pow (s - p + 1) - pow (s + 1) <= x - g by rewrite xgE; lra.
-    suff : 0 <= pow (s - p + 1) by lra.
-    by apply: bpow_ge_0.
+have e1NxgB : e1 <= 0 ->  - pow (s + 1) <= x - g.
+  move=> e1N.
+  have F2 : pow (s - p + 1) - pow (s + 1) <= - pow s * x.
+    have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
+    by rewrite bpow_plus [pow (s + 1)]bpow_plus -[pow 1]/2; nra.
+  have F3 : pow (s - p + 1) - pow (s + 1) <= x - g by rewrite xgE; lra.
+  suff : 0 <= pow (s - p + 1) by lra.
+  by apply: bpow_ge_0.
+have e1PxgB : 0 < e1 -> x - g <= - pow (s + 1) -> d = - pow (s + 1).
+  move=> e1P xgBl.
   have CxNF : ~ format (C * x).
-    move => CxF.
-    suff : g = C * x by lra.
+    move => CxF; suff : g = C * x by lra.
     by rewrite /g /RND1 round_generic.
   have Hrnd1 x1 : rnd1 x1 = Zceil x1.
     have CxB1 : round beta fexp Zfloor (C * x) < C * x < 
@@ -440,8 +435,6 @@ have dBu : Rabs d <= pow (s + 1).
     rewrite pred_opp succ_eq_pos; last apply: bpow_ge_0.
     rewrite ulp_bpow /fexp.
     by congr (- (pow _ + pow _)); lia.
-  have [G1|G1] := Rle_lt_dec (x - g) (- pow (s + 1)); last first.
-    by rewrite -rs1E; apply: round_le; lra.
   have xgB1 : Ulp.pred beta fexp (- pow (s + 1)) < x - g <= - pow (s + 1).
     split; last by lra.
     have -> : Ulp.pred beta fexp (- pow (s + 1)) =
@@ -455,12 +448,21 @@ have dBu : Rabs d <= pow (s + 1).
     suff : pow (s - p + 2) = 2 * pow (s - p + 1) by lra. 
     have -> : (s - p + 2 = (s - p + 1) + 1)%Z by lia.
     by rewrite bpow_plus -[pow 1]/2; lra.
-  rewrite -/d.
   have -> : d = round beta fexp Zceil (x - g).
     by rewrite /d /round -Hrnd1.
-  rewrite (round_UP_eq _ _ _ _ _ xgB1) //; first by lra.
+  rewrite (round_UP_eq _ _ _ _ _ xgB1) //.
   apply/generic_format_opp/generic_format_bpow.
   by rewrite /fexp; lia.
+have dBu : Rabs d <= pow (s + 1).
+  rewrite /d Rabs_left1; last first.
+    have <- : RND1 0 = 0 by apply: round_0.
+    by apply: round_le; lra.
+  suff : - pow (s + 1) <= RND1 (x - g) by lra.
+  have [e1N|e1P] := Rle_lt_dec e1 0.
+    by rewrite -rs1E; apply: round_le; lra.
+  have [xgLp|pLxg] := Rle_lt_dec (x - g) (- pow (s + 1)).
+    by rewrite -/d e1PxgB; lra.
+  by rewrite -rs1E; apply: round_le; lra.
 have dBd : pow s <= Rabs d.
   rewrite /d Rabs_left1; last first.
     have <- : RND1 0 = 0 by apply: round_0.
@@ -581,19 +583,28 @@ have dBd : pow s <= Rabs d.
   have : 1 < pow (s - 1) by apply: (bpow_lt _ 0); lia.
   have : pow (s - p + 1) < pow (s - 1) by apply: bpow_lt; lia.
   by lra.
-have e2B : Rabs e2 <= pow (s - p + 2).
-  apply: Rle_trans (_ : ulp d <= _).
-    by apply: error_le_ulp_round.
-  rewrite -ulp_abs.
-  apply: Rle_trans (_ : ulp (pow (s + 1)) <= _).
-    apply: ulp_le.
-    rewrite Rabs_Rabsolu [Rabs (pow _)]Rabs_pos_eq //.
-    by apply: bpow_ge_0.
-  by rewrite ulp_bpow /fexp; apply: bpow_le; lia.
+have e2B : Rabs e2 < pow (s - p + 1).
+  have [xgEp|xgNEp] := Req_dec (x - g) (- (pow (s + 1))).
+    rewrite /e2 /d xgEp /RND1 round_generic; last first.
+      by apply/generic_format_opp/generic_format_bpow; rewrite /fexp; lia.
+    by rewrite !Rsimp01; apply: bpow_gt_0.
+  have [e1N|e1P] := Rle_lt_dec e1 0.
+    apply: Rlt_le_trans (_ : ulp (x - g) <= _).
+      apply: error_lt_ulp; first by lra.
+    have -> : (s - p + 1 = s + 1 - p)%Z by lia.
+    apply: bpow_lt_ulp.
+    by rewrite Rabs_left1; lra.
+  have [xgLp|pLxg] := Rle_lt_dec (x - g) (- pow (s + 1)).
+    rewrite /e2 e1PxgB // Rabs_pos_eq; last by lra.
+    by clear -xgB; split_Rabs; lra.
+  apply: Rlt_le_trans (_ : ulp (x - g) <= _).
+    by apply: error_lt_ulp; lra.
+  have -> : (s - p + 1 = s + 1 - p)%Z by lia.
+  by apply: bpow_lt_ulp; rewrite Rabs_left1; lra.
 have dLgB : - d <= g <= 2 * - d.
   split.
     suff : 0 <= x + e2 by rewrite e2E e1E; lra.
-    apply: Rle_trans (_ : 1 - pow (s - p + 2) <= _); last first.
+    apply: Rle_trans (_ : 1 - pow (s - p + 1) <= _); last first.
       by clear - e2B xB; split_Rabs; lra.
     suff : pow (s - p + 2) <= 1 by lra.
     by apply: (bpow_le _ _ 0); lia.
@@ -605,6 +616,7 @@ have dLgB : - d <= g <= 2 * - d.
     - suff :  4 <= pow s by nra.
       by apply: (bpow_le radix2 2); lia.
     - by clear -e1B; split_Rabs; lra.
+    have : pow (s - p + 1) < pow (s - p + 2) by apply: bpow_lt; lia.
     by clear -e2B; split_Rabs; lra.
   suff : pow (s - p + 2) <= 1 by lra.
   by apply: (bpow_le radix2 _ 0); lia.
