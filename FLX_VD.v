@@ -148,6 +148,13 @@ Local Notation splitr := (split fexp (Zrnd_opp rnd)).
 
 Definition is_imul x y := exists z : Z, x = IZR z * y.
 
+Lemma is_imul_add x1 x2 y : 
+  is_imul x1 y -> is_imul x2 y -> is_imul (x1 + x2) y.
+Proof.
+move=> [z1 ->] [z2 ->]; exists (z1 + z2)%Z.
+by rewrite plus_IZR; lra.
+Qed.
+
 Lemma is_imul_format_mag_pow x y : 
   format x -> (y <= fexp (mag beta x))%Z -> is_imul x (pow y).
 Proof.
@@ -157,6 +164,19 @@ rewrite /generic_format /F2R /= in Fx.
 rewrite Fx /cexp.
 set m := Ztrunc _.
 exists (m * (beta ^ (fexp (mag beta x) - y)))%Z.
+rewrite mult_IZR IZR_Zpower; last by lia.
+by rewrite Rmult_assoc -bpow_plus; congr (_ * pow _); lia.
+Qed.
+
+Lemma is_imul_pow_le_pow x s :
+  format x -> pow s <= x -> is_imul x (pow (s - p + 1)).
+Proof.
+move=> xF pLx.
+have pP : 0 < pow s by apply: bpow_gt_0.
+have sLm : (s < mag beta x)%Z.
+  by apply: mag_gt_bpow; rewrite Rabs_pos_eq; lra.
+rewrite xF /cexp /fexp /F2R /=.
+set z := Ztrunc _; exists (z * (beta ^ (mag beta x - s - 1)))%Z.
 rewrite mult_IZR IZR_Zpower; last by lia.
 by rewrite Rmult_assoc -bpow_plus; congr (_ * pow _); lia.
 Qed.
@@ -210,6 +230,17 @@ move=> [z ->] y2Ly1.
 exists (z * beta ^ (y1 - y2))%Z.
 rewrite mult_IZR IZR_Zpower; last by lia.
 rewrite Rmult_assoc -bpow_plus; congr (_ * pow _); lia.
+Qed.
+
+Lemma is_imul_opp x v : is_imul x v -> is_imul (- x) v.
+Proof. by move=> [z] ->; exists (- z)%Z; rewrite opp_IZR; lra. Qed.
+
+Lemma is_imul_abs x v : is_imul x v -> is_imul (Rabs x) v.
+Proof. by split_Rabs => //; apply: is_imul_opp. Qed.
+
+Lemma is_abs_imul x v : is_imul (Rabs x) v -> is_imul x v.
+Proof. 
+by split_Rabs => //; rewrite -(Ropp_involutive x); apply: is_imul_opp.
 Qed.
 
 End IMUL.
@@ -267,6 +298,10 @@ Lemma split_sum x s :
 Proof.
 move=> Crnd xF sB.
 move: rnd valid_rnd Crnd.
+have psP : 0 < pow s by apply: bpow_gt_0.
+have ps1P : 0 < pow (s + 1) by apply: bpow_gt_0.
+have ps1pP : 0 < pow (s - p + 1) by apply: bpow_gt_0.
+have psp1P : 0 < pow (- p + 1) by apply: bpow_gt_0.
 wlog : x xF / 0 < x => [IH rnd1 Vrnd1 Crnd1| xP rnd1 Vrnd1 Crnd1].
   have [->|xP|xN]: [\/ x = 0, 0 < x | x < 0].
   - case: (Rle_dec x 0) => ?; last by apply: Or32; lra.
@@ -401,8 +436,7 @@ have e1NxgB : e1 <= 0 ->  - pow (s + 1) <= x - g.
     have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
     by rewrite bpow_plus [pow (s + 1)]bpow_plus -[pow 1]/2; nra.
   have F3 : pow (s - p + 1) - pow (s + 1) <= x - g by rewrite xgE; lra.
-  suff : 0 <= pow (s - p + 1) by lra.
-  by apply: bpow_ge_0.
+  by lra.
 have e1PxgB : 0 < e1 -> x - g <= - pow (s + 1) -> d = - pow (s + 1).
   move=> e1P xgBl.
   have CxNF : ~ format (C * x).
@@ -478,18 +512,14 @@ have dBd : pow s <= Rabs d.
         rewrite -succ1E; apply: generic_format_succ => //.
         rewrite -[1]/(pow 0).
         by apply: generic_format_bpow; rewrite /fexp; lia.
-      rewrite succ_eq_pos; last first.
-        suff :  0 < pow (- p + 1) by lra.
-        by apply: bpow_gt_0.
-      rewrite ulp_neq_0 /ce /fexp; last first.
-        suff : 0 <= pow (- p + 1) by lra.
-        by apply: bpow_ge_0.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
       rewrite (mag_unique_pos beta _ 1).
         have -> : (- p + 2 = - p + 1 + 1)%Z by lia.
         by rewrite !bpow_plus -[pow 1]/2; lra.
       rewrite -[pow (1 - 1)]/1 -[pow 1]/2.
       suff : 0 <= pow (- p + 1) < pow 0 by rewrite -[pow 0]/1; lra.
-      split; first by apply: bpow_ge_0.
+      split; first by lra.
       by apply: bpow_lt; lia.
     have <- : RND1 (- pow s) = - pow s.
       apply/round_generic/generic_format_opp/generic_format_bpow.
@@ -498,11 +528,8 @@ have dBd : pow s <= Rabs d.
     rewrite xgE.
     have {2}-> : - pow s = - pow s * (1 + pow (- p + 2)) + pow (s - p + 2).
       by rewrite !bpow_plus; lra.
-    apply: Rplus_le_compat; last first.
-      suff: 0 <= pow (s - p + 2) by clear -e1B; split_Rabs; lra.
-      by apply: bpow_ge_0.
-    suff : 0 <= pow s by nra.
-    by apply: bpow_ge_0.
+    apply: Rplus_le_compat; last by clear -e1B ps1pP; split_Rabs; lra.
+    by nra.
   have [HC | HNC]: (forall x : R, rnd1 x = Zceil x) \/ 
         ((forall x : R, rnd1 x = Ztrunc x) \/ forall x : R, rnd1 x = Zfloor x).
   - by case: Crnd1; [right; left| right; right|left].
@@ -556,10 +583,7 @@ have dBd : pow s <= Rabs d.
     rewrite -bpow_plus.
     have -> : (s + (- p + 1) = s - p + 1)%Z by lia.
     by lra.
-  rewrite succ_eq_pos; last first.
-    have : 0 <= pow s by apply: bpow_ge_0.
-    have : 0 <= pow (s - p + 1) by apply: bpow_ge_0.
-    by lra.
+  rewrite succ_eq_pos; last by lra.
   suff : pow s * pow (- p + 1) + pow (- p + 1) <
         pow (s - p + 1) + ulp (pow s + 1 + pow (s - p + 1)) by lra.
   suff : pow (- p + 1) <  ulp (pow s + 1 + pow (s - p + 1)).
@@ -567,22 +591,22 @@ have dBd : pow s <= Rabs d.
     have -> : (s + (- p + 1) = s - p + 1)%Z by lia.
     by lra.
   rewrite [X in ulp X]gfE ulp_neq_0 //; last first.
-    rewrite -gfE.
-    have : 0 < pow s by apply: bpow_gt_0.
-    have : 0 < pow (s - p + 1) by apply: bpow_gt_0.
-    by lra.
+    by rewrite -gfE; lra.
   apply: bpow_lt.
   rewrite /cexp /fexp; suff : (1 < mag beta (F2R gf))%Z by lia.
   rewrite (mag_unique_pos beta _ (s + 1)); first by lia.
   rewrite -gfE.
   have -> : (s + 1 - 1 = s)%Z by lia.
-  split; first by (have : 0 <= pow (s - p + 1) by apply: bpow_ge_0); lra.
+  split; first by lra.
   suff : 1 + pow (s - p + 1) < pow s by rewrite !bpow_plus -[pow 1]/2; lra.
   have -> : pow s = 2 * pow (s - 1).
     by rewrite -(bpow_plus beta 1); congr (pow _); lia.
   have : 1 < pow (s - 1) by apply: (bpow_lt _ 0); lia.
   have : pow (s - p + 1) < pow (s - 1) by apply: bpow_lt; lia.
   by lra.
+have dM : is_imul d (pow (s - p + 1)).
+  apply/is_abs_imul/is_imul_pow_le_pow => //.
+  by apply/generic_format_abs/generic_format_round.
 have e2B : Rabs e2 < pow (s - p + 1).
   have [xgEp|xgNEp] := Req_dec (x - g) (- (pow (s + 1))).
     rewrite /e2 /d xgEp /RND1 round_generic; last first.
@@ -627,18 +651,39 @@ have xhE : xh = g + d.
   apply: sterbenz; first by apply: generic_format_round.
     by apply/generic_format_opp/generic_format_round.
   by lra.
-    
-(*
-gamma + 2delta = -2^s x + 
-x - epsilon1 + 2 epsilon2
-               <= -3x + 2^{s-p+2} + 2 * 2^{s-p+1}   car 2 <= s
-               <= -3 + 2^{s-p+3}
-               <= -3 + 2^-5                         car s <= p-2
-               <= 0
-*)
-
+have xhM : is_imul xh (pow (s - p + 1)).
+  by apply/is_imul_pow_round/is_imul_add.
+have xhBu : xh <= 2.
+  have xhBu : xh < 2 + pow (s - p + 1).
+    have -> : xh = x + e2 by rewrite xhE e2E; lra.
+    by clear -xB e2B; split_Rabs; lra.
+  case: xhM => z Hz; rewrite Hz in xhBu *.
+  have -> : 2 = IZR (2 ^ (p - s)) * pow (s - p + 1).
+    rewrite (IZR_Zpower beta); last by lia.
+    by rewrite -bpow_plus -[2]/(pow 1); congr (pow _); lia.
+  have [/IZR_le zLps|/IZR_le psLz] :
+    (z <= 2 ^ (p - s) \/ (2 ^ (p - s) + 1 <= z))%Z by lia.
+    by clear -zLps ps1pP; nra.
+  suff : 2 + pow (s - p + 1) <= IZR z * pow (s - p + 1) by lra.
+  have -> : 2 = IZR (2 ^ (p - s)) * pow (s - p + 1).
+    rewrite (IZR_Zpower beta); last by lia.
+    by rewrite -bpow_plus -[2]/(pow 1); congr (pow _); lia.
+  rewrite plus_IZR in psLz.
+  by clear -psLz ps1pP; nra.
+have xhE2 : xh = x + e2 by lra.
+pose xl := RND1 (x - xh).
+have xlE : xl = x - xh.
+  apply: round_generic.
+  have -> : x - xh = - (xh - x) by lra.
+  apply/generic_format_opp/sterbenz => //; first by apply: generic_format_round.
+  suff : x <= 2 * xh by lra.
+  suff : 0 <= x + 2 * e2  by lra.
+  apply: Rle_trans (_ : 1 - (2 * pow (s - p + 1)) <= _); last first.
+    by clear -xB e2B; split_Rabs; lra.
+  suff: 2 * pow (s - p + 1) <= 1 by lra.
+  by rewrite -(bpow_plus beta 1) -[1]/(pow 0); apply: bpow_le; lia.
+by rewrite /= -/C -/RND1 -/d -/g -/xh -/xl; lra.
 Qed.
-
 
 End Main.
 
