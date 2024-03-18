@@ -100,7 +100,7 @@ have -> : (pow s + 1) * (pow t * x) = pow t * ((pow s + 1) * x) by lra.
 by rewrite !(round_bpow_flx, =^~ Rmult_minus_distr_l, =^~ Rmult_plus_distr_l).
 Qed.
 
-Lemma split_1 s :  (1 <= s <= p - 2)%Z -> split 1 s = DWR 1 0.
+Lemma split_1 s :  (1 <= s <= p - 1)%Z -> split 1 s = DWR 1 0.
 Proof.
 move=> sB; rewrite /split !Rsimp01.
 have -> : RND (pow s + 1) = pow s + 1.
@@ -294,7 +294,7 @@ Qed.
 Lemma split_sum x s :  
   [\/ forall x, rnd x = Ztrunc x, forall x, rnd x = Zfloor x |
       forall x, rnd x = Zceil x] ->
-  format x -> (1 <= s <= p - 2)%Z -> let: DWR xh xl := split x s in x = xh + xl.
+  format x -> (1 <= s <= p - 1)%Z -> let: DWR xh xl := split x s in x = xh + xl.
 Proof.
 move=> Crnd xF sB.
 move: rnd valid_rnd Crnd.
@@ -408,9 +408,686 @@ have rs1E : RND1 (- pow (s + 1)) = - pow (s + 1).
   apply: generic_format_bpow.
   by rewrite /fexp; lia.    
 have xgE : x - g = - pow s * x - e1 by rewrite e1E /C; lra.
+have p2C : p = 2%Z -> (g = 4 /\ (d = - 3 \/ d = - 2)) \/
+                      (g = 6 /\ (d = - 6 \/ d = - 4)).
+    move=> pE; rewrite pE -[pow _]/(/2) in xB1.
+    have sE : s = 1%Z by lia.
+    have cE : C = 3 by rewrite /C sE -[pow _]/2; lra.
+    have xE : x = 1 + /2 by lra.
+    have cxE : C * x = 4 + 1/2 by rewrite cE xE; lra.
+    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                   g = round beta fexp Zceil (C * x).
+    - rewrite /g /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+    - left. 
+      have gE1 : g = 4.
+        rewrite gE; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta 1 2)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        split; first by lra.
+        suff -> : succ beta fexp 4 = 6 by lra.
+        rewrite succ_eq_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          rewrite pE -[pow _]/2; lra.
+        by rewrite -[pow _]/4 -[pow 3]/8; lra.
+      split => //.
+      have xgE1 : x - g = - 3 + /2 by lra.
+      have [dE|dE] : d = round beta fexp Zfloor (x - g) \/ 
+                         d = round beta fexp Zceil (x - g).
+      - rewrite /d/RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+      - left; rewrite dE.
+        apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta (-3) 0)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        rewrite succ_opp -[IPR 3]/3.
+        suff -> : pred 3 = 2 by lra.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 2) //.
+          rewrite pE -[pow _]/2 -[pow _]/(/2) -[pow _]/1.
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/2 -[pow _]/4; lra.
+      right; rewrite dE.
+      apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-2) 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      rewrite pred_opp succ_eq_pos -[IPR _]/2; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 2) //.
+        by rewrite pE -[pow _]/1; lra.
+      by rewrite -[pow _]/2 -[pow _]/4; lra.
+    right.
+    have gE1 : g = 6.
+      rewrite gE; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta 3 1)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : pred 6 = 4 by lra.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/1 -[pow _]/2.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    split => //.
+    have xgE1 : x - g = - 5 + /2 by lra.
+    have [dE|dE] : d = round beta fexp Zfloor (x - g) \/ 
+                        d = round beta fexp Zceil (x - g).
+    - rewrite /d/RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+    - left; rewrite dE.
+      apply: round_DN_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-3) 1)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      rewrite succ_opp -[IPR _]/6.
+      suff -> : pred 6 = 4 by lra.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/1 -[pow _]/2.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    right; rewrite dE.
+    apply: round_UP_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-1) 2)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    rewrite pred_opp succ_eq_pos -[IPR _]/4; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 3) //.
+      by rewrite pE -[pow _]/2; lra.
+    by rewrite -[pow _]/4 -[pow _]/8; lra.
+have p3C : p = 3%Z -> [\/ x = 1 + /4 /\
+                          [\/ g = 4 - /2 /\ (d = - 2 - /2 \/ d = - 2),
+                              g = 4      /\ (d = - 3      \/ d = - 2 - /2),
+                              g = 6      /\ (d = - 5      \/ d = - 4) |
+                              g = 7      /\ (d = - 6      \/ d = - 5)]    ,
+                          x = 1 + /2 /\
+                          [\/ g = 4      /\  d = - 3  + /2,
+                              g = 5      /\  d = - 4  + /2,
+                              g = 7      /\ (d = - 6      \/ d = - 5) |
+                              g = 8      /\ (d = - 7      \/ d = - 6)]    |
+                          x = 2 - /4 /\
+                          [\/ g = 5       /\ (d = - 3  - /2 \/ d = - 3),
+                              g = 6       /\ (d = - 5       \/ d = - 4),
+                              g = 8       /\ (d = - 7       \/ d = - 6) |
+                              g = 10      /\ (d = - 10      \/ d = - 8)]].
+  move=> pE; rewrite pE -[pow _]/(/4) in xB1.
+  have sE : s = 1%Z \/ s = 2%Z by lia.
+  have [xE|xD1] := Req_dec x (1 + /4).
+    apply: Or31; split => //.
+    case: sE => sE.
+      have cE : C = 3 by rewrite /C sE -[pow _]/2; lra.
+      have cxE : C * x = 4 - / 4 by rewrite cE xE; lra.
+      have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                     g = round beta fexp Zceil (C * x).
+      - rewrite /g /RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+      - have gE1 : g = 4 - /2.
+          rewrite gE; apply: round_DN_eq.
+            apply: generic_format_FLX.
+            apply: (FLX_spec beta p _ (Float beta 7 (-1))).
+              by rewrite /F2R /=; lra.
+            by rewrite /= pE; lia.
+          suff -> : succ beta fexp (4 - /2) = 4 by lra.
+          rewrite succ_eq_pos; last by lra.
+          rewrite ulp_neq_0 /ce /fexp; last by lra.
+          rewrite (mag_unique_pos beta _ 2) //.
+            by rewrite pE -[pow _]/(/2); lra.
+          by rewrite -[pow _]/2 -[pow _]/4; lra.
+        apply: Or41; split => //.
+        have xgE1 : x - g = - 2 - /4 by lra.
+        have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                         d = round beta fexp Zceil (x - g).
+        - rewrite /d /RND1 /round /=.
+          by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+        - suff dE2 : d = - 2 - /2 by lra.
+          rewrite dE1; apply: round_DN_eq.
+            apply: generic_format_FLX.
+            apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
+              by rewrite /F2R /=; lra.
+            by rewrite /= pE; lia.
+          suff -> : succ beta fexp (- 2 - /2) = - 2 by lra.
+          have -> : - 2 - /2 = - (2 + /2) by lra.
+          rewrite succ_opp.
+          rewrite pred_eq_pos /pred_pos; last by lra.
+          rewrite ulp_neq_0 /ce /fexp; last by lra.
+          rewrite (mag_unique_pos beta _ 2) //.
+            rewrite pE -[pow _]/2 -[pow _]/(/4) -[pow _]/(/2).
+            by case: Req_bool_spec; lra.
+          by rewrite -[pow _]/2 -[pow _]/4; lra.
+        suff dE2 : d = - 2 by lra.
+        rewrite dE1; apply: round_UP_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta (-1) 1)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : pred (- 2) = - 2 - /2 by lra.
+        have -> : - 2 - /2 = - (2 + /2) by lra.
+        rewrite pred_opp -[IPR 2]/2.
+        rewrite succ_eq_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 2) //.
+          by rewrite pE -[pow _]/(/2); lra.
+        by rewrite -[pow _]/2 -[pow _]/4; lra.
+      have gE1 : g = 4.
+        rewrite gE; apply: round_UP_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta 1 2)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : pred 4 = 4 - /2 by lra.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      apply: Or42; split => //.
+      have xgE1 : x - g = - 3 + /4 by lra.
+      have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                      d = round beta fexp Zceil (x - g).
+      - rewrite /d /RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+      - suff dE2 : d = - 3 by lra.
+        rewrite dE1; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta (-3) 0)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp (- 3) = - 3 + /2 by lra.
+        rewrite succ_opp -[IPR 3]/3.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 2) //.
+          rewrite pE -[pow _]/2 -[pow _]/(/4) -[pow _]/(/2).
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/2 -[pow _]/4; lra.
+      suff dE2 : d = - 2 - /2 by lra.
+      rewrite dE1; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : pred (- 2 - /2) = - 3 by lra.
+      have -> : - 2 - /2 = - (2 + /2) by lra.
+      rewrite pred_opp.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 2) //.
+        by rewrite pE -[pow _]/(/2); lra.
+      by rewrite -[pow _]/2 -[pow _]/4; lra.
+    have cE : C = 5 by rewrite /C sE -[pow _]/4; lra.
+    have cxE : C * x = 6 + / 4 by rewrite cE xE; lra.
+    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                    g = round beta fexp Zceil (C * x).
+    - rewrite /g /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+    - have gE1 : g = 6.
+        rewrite gE; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta 3 1)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp 6 = 7 by lra.
+        rewrite succ_eq_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          by rewrite pE -[pow _]/1; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      apply: Or43; split => //.
+      have xgE1 : x - g = - 5 + /4 by lra.
+      have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                        d = round beta fexp Zceil (x - g).
+      - rewrite /d /RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+      - suff dE2 : d = - 5 by lra.
+        rewrite dE1; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta (-5) (0))).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp (- 5) = - 4 by lra.
+        rewrite succ_opp -[IPR _]/5.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      suff dE2 : d = - 4 by lra.
+      rewrite dE1; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-1) 2)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      rewrite pred_opp -[IPR _]/4.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        by rewrite pE -[pow _]/1; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    have gE1 : g = 7.
+      rewrite gE; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta 7 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : pred 7 = 6 by lra.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    apply: Or44; split => //.
+    have xgE1 : x - g = - 6 + /4 by lra.
+    have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                    d = round beta fexp Zceil (x - g).
+    - rewrite /d /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+    - suff dE2 : d = - 6 by lra.
+      rewrite dE1; apply: round_DN_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-3) 1)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : succ beta fexp (- 6) = - 5 by lra.
+      rewrite succ_opp -[IPR _]/6.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/(1).
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    suff dE2 : d = - 5 by lra.
+    rewrite dE1; apply: round_UP_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-5) 0)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    rewrite pred_opp -[IPR _]/5.
+    rewrite succ_eq_pos; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 3) //.
+      by rewrite pE -[pow _]/1; lra.
+    by rewrite -[pow _]/4 -[pow _]/8; lra.
+  have [xE|xD2] := Req_dec x (1 + /2).
+    apply: Or32; split => //.
+    case: sE => sE.
+      have cE : C = 3 by rewrite /C sE -[pow _]/2; lra.
+      have cxE : C * x = 4 + / 2 by rewrite cE xE; lra.
+      have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                      g = round beta fexp Zceil (C * x).
+      - rewrite /g /RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+      - have gE1 : g = 4.
+          rewrite gE; apply: round_DN_eq.
+            apply: generic_format_FLX.
+            apply: (FLX_spec beta p _ (Float beta 1 2)).
+              by rewrite /F2R /=; lra.
+            by rewrite /= pE; lia.
+          suff -> : succ beta fexp 4 = 5 by lra.
+          rewrite succ_eq_pos; last by lra.
+          rewrite ulp_neq_0 /ce /fexp; last by lra.
+          rewrite (mag_unique_pos beta _ 3) //.
+            by rewrite pE -[pow _]/1; lra.
+          by rewrite -[pow _]/4 -[pow _]/8; lra.
+        apply: Or41; split => //.
+        have xgE1 : x - g = - 3 + /2 by lra.
+        rewrite - xgE1; apply: round_generic.
+        rewrite xgE1.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      have gE1 : g = 5.
+        rewrite gE; apply: round_UP_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta 5 0)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : pred 5 = 4 by lra.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      apply: Or42; split => //.
+      have xgE1 : x - g = - 4 + /2 by lra.
+      rewrite -xgE1; apply: round_generic.
+      rewrite xgE1; apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-7) (-1))).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    have cE : C = 5 by rewrite /C sE -[pow _]/4; lra.
+    have cxE : C * x = 7 + / 2 by rewrite cE xE; lra.
+    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                    g = round beta fexp Zceil (C * x).
+    - rewrite /g /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+    - have gE1 : g = 7.
+        rewrite gE; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta 7 0)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp 7 = 8 by lra.
+        rewrite succ_eq_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          by rewrite pE -[pow _]/1; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      apply: Or43; split => //.
+      have xgE1 : x - g = - 6 + /2 by lra.
+      have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                      d = round beta fexp Zceil (x - g).
+      - rewrite /d /RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+      - suff dE2 : d = - 6 by lra.
+        rewrite dE1; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta (-3) 1)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp (- 6) = - 5 by lra.
+        rewrite succ_opp -[IPR _]/6.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/(1).
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      suff dE2 : d = - 5 by lra.
+      rewrite dE1; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-5) 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      rewrite pred_opp -[IPR _]/5.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        by rewrite pE -[pow _]/1; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    have gE1 : g = 8.
+      rewrite gE; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta 1 3)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : pred 8 = 7 by lra.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 4) //.
+        rewrite pE -[pow _]/8 -[pow _]/1 -[pow _]/2.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/8 -[pow _]/16; lra.
+    apply: Or44; split => //.
+    have xgE1 : x - g = - 7 + /2 by lra.
+    have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                     d = round beta fexp Zceil (x - g).
+    - rewrite /d /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+    - suff dE2 : d = - 7 by lra.
+      rewrite dE1; apply: round_DN_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-7) 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : succ beta fexp (- 7) = - 6 by lra.
+      rewrite succ_opp -[IPR _]/7.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/(1).
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    suff dE2 : d = - 6 by lra.
+    rewrite dE1; apply: round_UP_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-3) 1)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    rewrite pred_opp -[IPR _]/6.
+    rewrite succ_eq_pos; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 3) //.
+      by rewrite pE -[pow _]/1; lra.
+    by rewrite -[pow _]/4 -[pow _]/8; lra.
+  have xE : x = 2 - /4.
+    have F1 : format (1 + /4).
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta 5 (-2))).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    have F2 : succ beta fexp (1 + /4) = 1 + /2.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 1) //.
+        by rewrite pE -[pow _]/(/4); lra.
+      by rewrite -[pow _]/1 -[pow _]/2; lra.
+    have F3 : succ beta fexp (1 + /2) = 2 - /4.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 1) //.
+        by rewrite pE -[pow _]/(/4); lra.
+      by rewrite -[pow _]/1 -[pow _]/2; lra.
+    have F4 : 1 + /2 <= x by rewrite -F2; apply: succ_le_lt => //; lra.
+    suff F5 : 2 - /4 <= x by lra.
+    rewrite -F3; apply: succ_le_lt => //.
+      by rewrite -F2; apply: generic_format_succ.
+    by lra.
+  apply: Or33; split => //.
+  case: sE => sE.
+    have cE : C = 3 by rewrite /C sE -[pow _]/2; lra.
+    have cxE : C * x = 5 + / 4 by rewrite cE xE; lra.
+    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                   g = round beta fexp Zceil (C * x).
+    - rewrite /g /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+    - have gE1 : g = 5.
+        rewrite gE; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta 5 0)).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp 5 = 6 by lra.
+        rewrite succ_eq_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 3) //.
+          by rewrite pE -[pow _]/1; lra.
+        by rewrite -[pow _]/4 -[pow _]/8; lra.
+      apply: Or41; split => //.
+      have xgE1 : x - g = - 3 - /4 by lra.
+      have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                       d = round beta fexp Zceil (x - g).
+      - rewrite /d /RND1 /round /=.
+        by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+      - suff dE2 : d = - 3 - /2 by lra.
+        rewrite dE1; apply: round_DN_eq.
+          apply: generic_format_FLX.
+          apply: (FLX_spec beta p _ (Float beta (-7) (-1))).
+            by rewrite /F2R /=; lra.
+          by rewrite /= pE; lia.
+        suff -> : succ beta fexp (- 3 - /2) = - 3 by lra.
+        have -> : - 3 - /2 = - (3 + /2) by lra.
+        rewrite succ_opp.
+        rewrite pred_eq_pos /pred_pos; last by lra.
+        rewrite ulp_neq_0 /ce /fexp; last by lra.
+        rewrite (mag_unique_pos beta _ 2) //.
+          rewrite pE -[pow _]/2 -[pow _]/(/4) -[pow _]/(/2).
+          by case: Req_bool_spec; lra.
+        by rewrite -[pow _]/2 -[pow _]/4; lra.
+      suff dE2 : d = - 3 by lra.
+      rewrite dE1; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-3) 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      rewrite pred_opp -[IPR 3]/3.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 2) //.
+        by rewrite pE -[pow _]/(/2); lra.
+      by rewrite -[pow _]/2 -[pow _]/4; lra.
+    have gE1 : g = 6.
+      rewrite gE; apply: round_UP_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta 3 1)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : pred 6 = 5 by lra.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    apply: Or42; split => //.
+    have xgE1 : x - g = - 4 - /4 by lra.
+    have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                     d = round beta fexp Zceil (x - g).
+    - rewrite /d /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+    - suff dE2 : d = - 5 by lra.
+      rewrite dE1; apply: round_DN_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-5) 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : succ beta fexp (- 5) = - 4 by lra.
+      rewrite succ_opp -[IPR _]/5.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    suff dE2 : d = - 4 by lra.
+    rewrite dE1; apply: round_UP_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-1) 2)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    rewrite pred_opp -[IPR _]/4.
+    rewrite succ_eq_pos; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 3) //.
+      by rewrite pE -[pow _]/1; lra.
+    by rewrite -[pow _]/4 -[pow _]/8; lra.
+  have cE : C = 5 by rewrite /C sE -[pow _]/4; lra.
+  have cxE : C * x = 9 - / 4 by rewrite cE xE; lra.
+  have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
+                 g = round beta fexp Zceil (C * x).
+  - rewrite /g /RND1 /round /=.
+    by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
+  - have gE1 : g = 8.
+      rewrite gE; apply: round_DN_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta 1 3)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : succ beta fexp 8 = 10 by lra.
+      rewrite succ_eq_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 4) //.
+        by rewrite pE -[pow _]/2; lra.
+      by rewrite -[pow _]/8 -[pow _]/16; lra.
+    apply: Or43; split => //.
+    have xgE1 : x - g = - 6 - /4 by lra.
+    have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                     d = round beta fexp Zceil (x - g).
+    - rewrite /d /RND1 /round /=.
+      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+    - suff dE2 : d = - 7 by lra.
+      rewrite dE1; apply: round_DN_eq.
+        apply: generic_format_FLX.
+        apply: (FLX_spec beta p _ (Float beta (-7) 0)).
+          by rewrite /F2R /=; lra.
+        by rewrite /= pE; lia.
+      suff -> : succ beta fexp (- 7) = - 6 by lra.
+      rewrite succ_opp -[IPR _]/7.
+      rewrite pred_eq_pos /pred_pos; last by lra.
+      rewrite ulp_neq_0 /ce /fexp; last by lra.
+      rewrite (mag_unique_pos beta _ 3) //.
+        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
+        by case: Req_bool_spec; lra.
+      by rewrite -[pow _]/4 -[pow _]/8; lra.
+    suff dE2 : d = - 6 by lra.
+    rewrite dE1; apply: round_UP_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-3) 1)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    rewrite pred_opp -[IPR _]/6.
+    rewrite succ_eq_pos; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 3) //.
+      by rewrite pE -[pow _]/1; lra.
+    by rewrite -[pow _]/4 -[pow _]/8; lra.
+  have gE1 : g = 10.
+    rewrite gE; apply: round_UP_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta 5 1)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    suff -> : pred 10 = 8 by lra.
+    rewrite pred_eq_pos /pred_pos; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 4) //.
+      rewrite pE -[pow _]/8 -[pow _]/1 -[pow _]/2.
+      by case: Req_bool_spec; lra.
+    by rewrite -[pow _]/8 -[pow _]/16; lra.
+  apply: Or44; split => //.
+  have xgE1 : x - g = - 8 - /4 by lra.
+  have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
+                  d = round beta fexp Zceil (x - g).
+  - rewrite /d /RND1 /round /=.
+    by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
+  - suff dE2 : d = - 10 by lra.
+    rewrite dE1; apply: round_DN_eq.
+      apply: generic_format_FLX.
+      apply: (FLX_spec beta p _ (Float beta (-5) 1)).
+        by rewrite /F2R /=; lra.
+      by rewrite /= pE; lia.
+    suff -> : succ beta fexp (- 10) = - 8 by lra.
+    rewrite succ_opp -[IPR _]/10.
+    rewrite pred_eq_pos /pred_pos; last by lra.
+    rewrite ulp_neq_0 /ce /fexp; last by lra.
+    rewrite (mag_unique_pos beta _ 4) //.
+      rewrite pE -[pow _]/8 -[pow _]/1 -[pow _]/2.
+      by case: Req_bool_spec; lra.
+    by rewrite -[pow _]/8 -[pow _]/16; lra.
+  suff dE2 : d = - 8 by lra.
+  rewrite dE1; apply: round_UP_eq.
+    apply: generic_format_FLX.
+    apply: (FLX_spec beta p _ (Float beta (-1) 3)).
+      by rewrite /F2R /=; lra.
+    by rewrite /= pE; lia.
+  rewrite pred_opp -[IPR _]/8.
+  rewrite succ_eq_pos; last by lra.
+  rewrite ulp_neq_0 /ce /fexp; last by lra.
+  rewrite (mag_unique_pos beta _ 4) //.
+    by rewrite pE -[pow _]/2; lra.
+  by rewrite -[pow _]/8 -[pow _]/16; lra.
 have xgB : Rabs (x - g) < pow (s + 1) + pow (s- p + 1).
   rewrite xgE.
-  apply: Rle_lt_trans (_ : Rabs (pow s * x) + Rabs e1 < _); first by split_Rabs; lra.
+  apply: Rle_lt_trans (_ : Rabs (pow s * x) + Rabs e1 < _).
+    by split_Rabs; lra.
   have -> : pow (s + 1) + pow (s - p + 1) =  
             pow s * (2 - pow (- p +1)) + pow (s- p + 2).
     have -> : (s - p + 1 = s + (- p + 1))%Z by lia.
@@ -498,6 +1175,10 @@ have dBu : Rabs d <= pow (s + 1).
     by rewrite -/d e1PxgB; lra.
   by rewrite -rs1E; apply: round_le; lra.
 have dBd : pow s <= Rabs d.
+  have [pE|pGt] : (p = 2%Z \/ 3 <= p)%Z by lia.
+    have sE : s = 1%Z by lia.
+    rewrite sE -[pow _]/2.
+    case: (p2C pE); case => _ []->; clear; split_Rabs; lra.
   rewrite /d Rabs_left1; last first.
     have <- : RND1 0 = 0 by apply: round_0.
     by apply: round_le; lra.
@@ -628,27 +1309,25 @@ have e2B : Rabs e2 < pow (s - p + 1).
 have dLgB : - d <= g <= 2 * - d.
   split.
     suff : 0 <= x + e2 by rewrite e2E e1E; lra.
-    apply: Rle_trans (_ : 1 - pow (s - p + 1) <= _); last first.
-      by clear - e2B xB; split_Rabs; lra.
-    suff : pow (s - p + 2) <= 1 by lra.
+    apply: Rle_trans (_ : 1  + pow (- p + 1) - pow (s - p + 1) <= _); last first.
+      by clear - e2B xB1; split_Rabs; lra.
+    have : 0 < pow (- p + 1) by apply: bpow_gt_0.
+    suff : pow (s - p + 1) <= 1 by lra.
     by apply: (bpow_le _ _ 0); lia.
   suff : g + 2 * d <= 0 by lra.
-  have [sE1|sNE1] := Z.eq_dec s 1; last first.
-    have -> : g + 2 * d = - pow s * x + x - e1 + 2 * e2.
-      by rewrite e2E e1E; lra.
-    apply: Rle_trans (_ : -3 * x + pow (s - p + 2) + 2 * pow (s - p + 2) <= _).
-      repeat apply: Rplus_le_compat.
-      - suff :  4 <= pow s by nra.
-        by apply: (bpow_le radix2 2); lia.
-      - by clear -e1B; split_Rabs; lra.
-      have : pow (s - p + 1) < pow (s - p + 2) by apply: bpow_lt; lia.
-      by clear -e2B; split_Rabs; lra.
-    suff : pow (s - p + 2) <= 1 by lra.
-    by apply: (bpow_le radix2 _ 0); lia.
-  have cE : C = 3 by rewrite /C sE1 -[pow 1]/2; lra.
-  have [pE4|sNE4] := Z_lt_le_dec p 4; last first.
-    have -> : g + 2 * d = - pow s * x + x - e1 + 2 * e2.
-      by rewrite e2E e1E; lra.
+  have [pE2|pE3|pG4] : [\/ p = 2%Z, p = 3%Z | (4 <= p)%Z].
+  - have [?|[?|?]]: (p = 2%Z \/ p = 3%Z \/ 4 <= p)%Z by lia.
+    - by apply: Or31.
+    - by apply: Or32.
+    by apply: Or33.
+  - by case p2C => //; case=> -> []->; lra.
+  - case p3C => //.
+    - by case=> _; case; do 2 case => ->; lra.
+    - by case=> _; case; case => ->; lra.
+    by case=> _; case; do 2 case => ->; lra.    
+  have -> : g + 2 * d = - pow s * x + x - e1 + 2 * e2.
+    by rewrite e2E e1E; lra.
+  have [sE1|sNE1] := Z.eq_dec s 1.
     suff : - x - e1 + 2 * e2 <= 0 by rewrite sE1 -[pow 1]/2; lra.
     have sp1E : (s - p + 1 = 2 - p)%Z by lia.
     have sp2E : (s - p + 2 = 3 - p)%Z by lia.
@@ -663,316 +1342,31 @@ have dLgB : - d <= g <= 2 * - d.
       by clear -e2B; split_Rabs; lra.  
     suff : pow (4 - p) <= 1 by lra.
     by apply: (bpow_le radix2 _ 0); lia.
-  have [pE|pE] : (p = 2 \/ p = 3)%Z by lia.
-    rewrite pE -[pow _]/(/2) in xB1.
-    have xE : x = 1 + /2 by lra.
-    have cxE : C * x = 4 + 1/2 by rewrite cE xE; lra.
-    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
-                   g = round beta fexp Zceil (C * x).
-    - rewrite /g /RND1 /round /=.
-      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
-    - have gE1 : g = 4.
-        rewrite gE; apply: round_DN_eq.
-          apply: generic_format_FLX.
-          apply: (FLX_spec beta p _ (Float beta 1 2)).
-            by rewrite /F2R /=; lra.
-          by rewrite /= pE; lia.
-        suff -> : succ beta fexp 4 = 6 by lra.
-        rewrite succ_eq_pos; last by lra.
-        rewrite ulp_neq_0 /ce /fexp; last by lra.
-        rewrite (mag_unique_pos beta _ 3) //.
-          rewrite pE -[pow _]/2; lra.
-        by rewrite -[pow _]/4 -[pow 3]/8; lra.
-      have xgF : format (x - g).
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff dE : d = - 3  + /2 by lra.
-      by rewrite /d /RND1 round_generic // xE gE1; lra.
-    have gE1 : g = 5.
-      rewrite gE; apply: round_UP_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta 5 0)).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : pred 5 = 3 by lra.
-      rewrite pred_eq_pos /pred_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 3) //.
-        rewrite pE -[pow _]/4 -[pow _]/1 -[pow _]/2.
-        by case: Req_bool_spec; lra.
-      by rewrite -[pow _]/4 -[pow _]/8; lra.
-    have xgF : format (x - g).
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta (-7) (-1))).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    suff : d = - 4  + /2 by lra.
-    by rewrite /d /RND1 round_generic // xE gE1; lra.
-  rewrite pE -[pow _]/(/4) in xB1.
-  have [xE|xE|xE] : [\/ x = 1 + /4, x = 1 + /2 | x = 2 - /4].
-  - have F1 : format (1 + /4).
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta 5 (-2))).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    have F2 : succ beta fexp (1 + /4) = 1 + /2.
-      rewrite succ_eq_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 1) //.
-        by rewrite pE -[pow _]/(/4); lra.
-      by rewrite -[pow _]/1 -[pow _]/2; lra.
-    have F3 : succ beta fexp (1 + /2) = 2 - /4.
-      rewrite succ_eq_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 1) //.
-        by rewrite pE -[pow _]/(/4); lra.
-      by rewrite -[pow _]/1 -[pow _]/2; lra.
-    have [->//|xD1] := Req_dec x (1 + /4); first by apply: Or31.
-    have F4 : 1 + /2 <= x.
-      rewrite -F2; apply: succ_le_lt => //; lra.
-    have [->//|xD2] := Req_dec x (1 + /2); first by apply: Or32.
-    suff F5 : 2 - /4 <= x by apply: Or33; lra.
-    rewrite -F3; apply: succ_le_lt => //.
-      by rewrite -F2; apply: generic_format_succ.
-    by lra.
-  - have cxE : C * x = 4 - / 4 by rewrite cE xE; lra.
-    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
-                   g = round beta fexp Zceil (C * x).
-    - rewrite /g /RND1 /round /=.
-      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
-    - have gE1 : g = 4 - /2.
-        rewrite gE; apply: round_DN_eq.
-          apply: generic_format_FLX.
-          apply: (FLX_spec beta p _ (Float beta 7 (-1))).
-            by rewrite /F2R /=; lra.
-          by rewrite /= pE; lia.
-        suff -> : succ beta fexp (4 - /2) = 4 by lra.
-        rewrite succ_eq_pos; last by lra.
-        rewrite ulp_neq_0 /ce /fexp; last by lra.
-        rewrite (mag_unique_pos beta _ 2) //.
-          by rewrite pE -[pow _]/(/2); lra.
-        by rewrite -[pow _]/2 -[pow _]/4; lra.
-      have xgE1 : x - g = - 2 - /4 by lra.
-      have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
-                      d = round beta fexp Zceil (x - g).
-      - rewrite /d /RND1 /round /=.
-        by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
-      - suff dE2 : d = - 2 - /2 by lra.
-        rewrite dE1; apply: round_DN_eq.
-          apply: generic_format_FLX.
-          apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
-            by rewrite /F2R /=; lra.
-          by rewrite /= pE; lia.
-        suff -> : succ beta fexp (- 2 - /2) = - 2 by lra.
-        have -> : - 2 - /2 = - (2 + /2) by lra.
-        rewrite succ_opp.
-        rewrite pred_eq_pos /pred_pos; last by lra.
-        rewrite ulp_neq_0 /ce /fexp; last by lra.
-        rewrite (mag_unique_pos beta _ 2) //.
-          rewrite pE -[pow _]/2 -[pow _]/(/4) -[pow _]/(/2).
-          by case: Req_bool_spec; lra.
-        by rewrite -[pow _]/2 -[pow _]/4; lra.
-      suff dE2 : d = - 2 by lra.
-      rewrite dE1; apply: round_UP_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta (-1) 1)).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : pred (- 2) = - 2 - /2 by lra.
-      have -> : - 2 - /2 = - (2 + /2) by lra.
-      rewrite pred_opp -[IPR 2]/2.
-      rewrite succ_eq_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 2) //.
-        by rewrite pE -[pow _]/(/2); lra.
-      by rewrite -[pow _]/2 -[pow _]/4; lra.
-    have gE1 : g = 4.
-      rewrite gE; apply: round_UP_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta 1 2)).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : pred 4 = 4 - /2 by lra.
-      rewrite pred_eq_pos /pred_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 3) //.
-        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
-        by case: Req_bool_spec; lra.
-      by rewrite -[pow _]/4 -[pow _]/8; lra.
-    have xgE1 : x - g = - 3 + /4 by lra.
-    have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
-                    d = round beta fexp Zceil (x - g).
-    - rewrite /d /RND1 /round /=.
-      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
-    - suff dE2 : d = - 3 by lra.
-      rewrite dE1; apply: round_DN_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta (-3) 0)).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : succ beta fexp (- 3) = - 3 + /2 by lra.
-      rewrite succ_opp -[IPR 3]/3.
-      rewrite pred_eq_pos /pred_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 2) //.
-        rewrite pE -[pow _]/2 -[pow _]/(/4) -[pow _]/(/2).
-        by case: Req_bool_spec; lra.
-      by rewrite -[pow _]/2 -[pow _]/4; lra.
-    suff dE2 : d = - 2 - /2 by lra.
-    rewrite dE1; apply: round_UP_eq.
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    suff -> : pred (- 2 - /2) = - 3 by lra.
-    have -> : - 2 - /2 = - (2 + /2) by lra.
-    rewrite pred_opp.
-    rewrite succ_eq_pos; last by lra.
-    rewrite ulp_neq_0 /ce /fexp; last by lra.
-    rewrite (mag_unique_pos beta _ 2) //.
-      by rewrite pE -[pow _]/(/2); lra.
-    by rewrite -[pow _]/2 -[pow _]/4; lra.
-  - have cxE : C * x = 4 + / 2 by rewrite cE xE; lra.
-    have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
-                   g = round beta fexp Zceil (C * x).
-    - rewrite /g /RND1 /round /=.
-      by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
-    - have gE1 : g = 4.
-        rewrite gE; apply: round_DN_eq.
-          apply: generic_format_FLX.
-          apply: (FLX_spec beta p _ (Float beta 4 0)).
-            by rewrite /F2R /=; lra.
-          by rewrite /= pE; lia.
-        suff -> : succ beta fexp (4) = 5 by lra.
-        rewrite succ_eq_pos; last by lra.
-        rewrite ulp_neq_0 /ce /fexp; last by lra.
-        rewrite (mag_unique_pos beta _ 3) //.
-          by rewrite pE -[pow _]/1; lra.
-        by rewrite -[pow _]/4 -[pow _]/8; lra.
-      have xgE1 : x - g = - 3 + /2 by lra.
-      suff dE2 : d = x - g by lra.
-      apply: round_generic.
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta (-5) (-1))).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    have gE1 : g = 5.
-      rewrite gE; apply: round_UP_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta 5 0)).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : pred (5) = 4 by lra.
-      rewrite pred_eq_pos /pred_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 3) //.
-        rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
-        by case: Req_bool_spec; lra.
-      by rewrite -[pow _]/4 -[pow _]/8; lra.
-    have xgE1 : x - g = - 4 + /2 by lra.
-    suff dE2 : d = x - g by lra.
-    apply: round_generic.
-    apply: generic_format_FLX.
-    apply: (FLX_spec beta p _ (Float beta (-7) (-1))).
-      by rewrite /F2R /=; lra.
-    by rewrite /= pE; lia.
-  have cxE : C * x = 5 + / 4 by rewrite cE xE; lra.
-  have [gE|gE] : g = round beta fexp Zfloor (C * x) \/ 
-                 g = round beta fexp Zceil (C * x).
-  - rewrite /g /RND1 /round /=.
-    by case: (Zrnd_DN_or_UP rnd1 (mant (C * x))) => ->; [left|right].
-  - have gE1 : g = 5.
-      rewrite gE; apply: round_DN_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta 5 0)).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : succ beta fexp 5 = 6 by lra.
-      rewrite succ_eq_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 3) //.
-        by rewrite pE -[pow _]/1; lra.
-      by rewrite -[pow _]/4 -[pow _]/8; lra.
-    have xgE1 : x - g = - 3 - /4 by lra.
-    have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
-                      d = round beta fexp Zceil (x - g).
-    - rewrite /d /RND1 /round /=.
-      by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
-    - suff dE2 : d = - 3 - /2 by lra.
-      rewrite dE1; apply: round_DN_eq.
-        apply: generic_format_FLX.
-        apply: (FLX_spec beta p _ (Float beta (-7) (-1))).
-          by rewrite /F2R /=; lra.
-        by rewrite /= pE; lia.
-      suff -> : succ beta fexp (- 3 - /2) = - 3 by lra.
-      have -> : -3 - / 2 = - (3 + /2) by lra.
-      rewrite succ_opp.
-      rewrite pred_eq_pos /pred_pos; last by lra.
-      rewrite ulp_neq_0 /ce /fexp; last by lra.
-      rewrite (mag_unique_pos beta _ 2) //.
-        rewrite pE -[pow _]/2 -[pow _]/(/4) -[pow _]/(/2).
-        by case: Req_bool_spec; lra.
-      by rewrite -[pow _]/2 -[pow _]/4; lra.
-    suff dE2 : d = - 3 by lra.
-    rewrite dE1; apply: round_UP_eq.
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta (-3) 0)).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    suff -> : pred (- 3) = - 3 - /2 by lra.
-    rewrite pred_opp -[IPR 3]/3.
-    rewrite succ_eq_pos; last by lra.
-    rewrite ulp_neq_0 /ce /fexp; last by lra.
-    rewrite (mag_unique_pos beta _ 2) //.
-      by rewrite pE -[pow _]/(/2); lra.
-    by rewrite -[pow _]/2 -[pow _]/4; lra.
-  have gE1 : g = 6.
-    rewrite gE; apply: round_UP_eq.
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta 6 0)).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    suff -> : pred 6 = 5 by lra.
-    rewrite pred_eq_pos /pred_pos; last by lra.
-    rewrite ulp_neq_0 /ce /fexp; last by lra.
-    rewrite (mag_unique_pos beta _ 3) //.
-      rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/1.
-      by case: Req_bool_spec; lra.
-    by rewrite -[pow _]/4 -[pow _]/8; lra.
-  have xgE1 : x - g = - 4 - /4 by lra.
-  have [dE1|dE1] : d = round beta fexp Zfloor (x - g) \/ 
-                   d = round beta fexp Zceil (x - g).
-  - rewrite /d /RND1 /round /=.
-    by case: (Zrnd_DN_or_UP rnd1 (mant (x - g))) => ->; [left|right].
-  - suff dE2 : d = - 5 by lra.
-    rewrite dE1; apply: round_DN_eq.
-      apply: generic_format_FLX.
-      apply: (FLX_spec beta p _ (Float beta (-5) 0)).
-        by rewrite /F2R /=; lra.
-      by rewrite /= pE; lia.
-    suff -> : succ beta fexp (- 5) = - 4 by lra.
-    rewrite succ_opp -[IPR 5]/5.
-    rewrite pred_eq_pos /pred_pos; last by lra.
-    rewrite ulp_neq_0 /ce /fexp; last by lra.
-    rewrite (mag_unique_pos beta _ 3) //.
-      rewrite pE -[pow _]/4 -[pow _]/(/2) -[pow _]/(1).
-      by case: Req_bool_spec; lra.
-    by rewrite -[pow _]/4 -[pow _]/8; lra.
-  suff dE2 : d = - 4 by lra.
-  rewrite dE1; apply: round_UP_eq.
-    apply: generic_format_FLX.
-    apply: (FLX_spec beta p _ (Float beta (-4) 0)).
-      by rewrite /F2R /=; lra.
-    by rewrite /= pE; lia.
-  suff -> : pred (- 4) = - 5 by lra.
-  rewrite pred_opp -[IPR 4]/4.
-  rewrite succ_eq_pos; last by lra.
-  rewrite ulp_neq_0 /ce /fexp; last by lra.
-  rewrite (mag_unique_pos beta _ 3) //.
-    by rewrite pE -[pow _]/1; lra.
-  by rewrite -[pow _]/4 -[pow _]/8; lra.
+  have [sE2|sNE2] := Z.eq_dec s (p - 1)%Z.
+    apply: Rle_trans (_ : - 4 * x + pow (s - p + 2) + 2 * pow (s - p + 1) <= _).
+      repeat apply: Rplus_le_compat.
+      - suff :  4 * x <= (pow s - 1) * x by lra.
+        apply: Rmult_le_compat_r; first by lra.
+        suff : 8 <= pow s by lra.
+        by apply: (bpow_le beta 3); lia.
+      - by clear -e1B; split_Rabs; lra.
+      by clear -e2B; split_Rabs; lra.
+    have -> :  pow (s - p + 2) = 2 * pow (s - p + 1).
+      by rewrite -(bpow_plus beta 1); congr (pow _); lia.
+    suff : pow (s - p + 1) <= 1 by lra.
+    by apply: (bpow_le radix2 _ 0); lia.
+  apply: Rle_trans (_ : - 3 * x + pow (s - p + 2) + 2 * pow (s - p + 1) <= _).
+    repeat apply: Rplus_le_compat.
+    - suff :  3 * x <= (pow s - 1) * x by lra.
+      apply: Rmult_le_compat_r; first by lra.
+      suff : 4 <= pow s by lra.
+      by apply: (bpow_le beta 2); lia.
+    - by clear -e1B; split_Rabs; lra.
+    by clear -e2B; split_Rabs; lra.
+  have <- :  pow (s - p + 2) = 2 * pow (s - p + 1).
+    by rewrite -(bpow_plus beta 1); congr (pow _); lia.
+  suff : pow (s - p + 2) <= 1 by lra.
+  by apply: (bpow_le radix2 _ 0); lia.
 pose xh := RND1 (g + d).
 have xhE : xh = g + d.
   apply: round_generic.
@@ -1007,10 +1401,14 @@ have xlE : xl = x - xh.
   apply/generic_format_opp/sterbenz => //; first by apply: generic_format_round.
   suff : x <= 2 * xh by lra.
   suff : 0 <= x + 2 * e2  by lra.
-  apply: Rle_trans (_ : 1 - (2 * pow (s - p + 1)) <= _); last first.
-    by clear -xB e2B; split_Rabs; lra.
-  suff: 2 * pow (s - p + 1) <= 1 by lra.
-  by rewrite -(bpow_plus beta 1) -[1]/(pow 0); apply: bpow_le; lia.
+  apply: Rle_trans (_ : 1 +  pow (- p + 1) - (2 * pow (s - p + 1)) <= _); last first.
+    by clear -xB1 e2B; split_Rabs; lra.
+  have <- : pow (s - p + 2) = 2 * pow (s - p + 1).
+    by rewrite -(bpow_plus beta 1); congr (pow _); lia.
+  have [sE|sN] := Z.eq_dec s (p - 1)%Z; last first.
+    suff: pow (s - p + 2) <= 1 by lra.
+    by apply: (bpow_le beta _ 0); lia.
+  admit.
 by rewrite /= -/C -/RND1 -/d -/g -/xh -/xl; lra.
 Qed.
 
